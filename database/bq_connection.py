@@ -1,0 +1,127 @@
+from google.api_core.exceptions import BadRequest
+from google.oauth2 import service_account
+from cryptography.fernet import Fernet
+from google.cloud import bigquery
+from datetime import datetime
+from pandas import DataFrame
+from random import choice
+import string
+import json
+import os
+
+
+class JobNotCompleteError(Exception):
+    pass
+
+
+def create_service_account_file(service_account_string) -> str:
+    service_account_json_dict = json.loads(service_account_string)
+    tmp_path = ""
+
+    file_name = "file__h" + _random_hash(15) + "h__.json"
+    with open(tmp_path + file_name, 'w') as file:
+        json_string = json.dumps(service_account_json_dict, default=lambda o: o.__dict__, sort_keys=True, indent=2)
+        file.write(json_string)
+
+    return tmp_path + file_name
+
+
+def _random_hash(size: int = 6, chars: str = string.ascii_uppercase + string.digits) -> str:
+    """
+    Generate a random string with size n
+
+    :param size: number o character in the string
+    :param chars: possible character to hash
+    :return: random generated string
+    """
+    return ''.join(choice(chars) for _ in range(size))
+
+
+def _read_api_key_with_fernet() -> bytes:
+    fernet = Fernet(open("filekey.key").read())
+
+    # opening the encrypted file
+    with open('big_query_api_key.txt', 'rb') as enc_file:
+        encrypted = enc_file.read()
+
+    # decrypting the file
+    return fernet.decrypt(encrypted)
+
+
+def execute(query: str, api_key: str = None) -> DataFrame:
+
+    if api_key is None:
+        api_key = _read_api_key_with_fernet()
+
+    query_start_time = datetime.now()
+    try:
+        bq_response = big_query_request(api_key, query)
+    except BadRequest as e:
+        log_query = {"connection": "Big Query", "query": query, "time": "00:00:00.00", "success": False}
+        raise e
+
+    total_query_time = str(datetime.now() - query_start_time)
+
+    if not bq_response.get("jobComplete"):
+        log_query = {"connection": "Big Query", "query": query, "time": total_query_time, "success": False}
+        raise JobNotCompleteError
+
+    elif bq_response.get("totalRows", "0") == "0":
+        data_frame = DataFrame()
+        metadata = None
+    else:
+        log_query = {"connection": "Big Query", "query": query, "time": total_query_time, "success": True}
+        data_frame = build_dataframe_from_request(bq_response)
+
+    return data_frame
+
+
+def big_query_request(api_key: str, query: str) -> dict:
+    bq_client = connect_to_client(api_key)
+    return bq_client._connection.api_request(
+        "POST",
+        "/projects/{}/queries".format(bq_client.project),
+        data={"query": query, "useLegacySql": False},
+    )
+
+
+def connect_to_client(api_key: str):
+    scopes = ["https://www.googleapis.com/auth/bigquery", "https://www.googleapis.com/auth/cloud-platform"]
+    service_account_file = create_service_account_file(api_key)
+    credentials = service_account.Credentials.from_service_account_file(service_account_file, scopes=scopes)
+    os.remove(service_account_file)
+    client = bigquery.Client(
+        credentials=credentials,
+        project=credentials.project_id
+    )
+    return client
+
+
+def build_dataframe_from_request(request: dict) -> DataFrame:
+    fields = request.get("schema").get("fields")
+    rows = request.get("rows")
+
+    column_names = [field.get("name") for field in fields]
+    column_types = [field.get("type") for field in fields]
+    type_dict = dict(zip(column_names, column_types))
+
+    row_list = [row.get("f") for row in rows]
+    raw_data_frame = DataFrame(data=row_list, columns=column_names)
+
+    data_frame = raw_data_frame.applymap(lambda cell: cell.get("v"))
+    convert_columns_type(data_frame, type_dict)
+
+    return data_frame
+
+
+def convert_columns_type(data_frame, types) -> None:
+    type_function_map = {
+        "NUMERIC": "float",
+        "BIGNUMERIC": "float",
+        "FLOAT": "float",
+        "INTEGER": "int",
+    }
+    for column, type in types.items():
+        if type_function_map.get(type):
+            type_to_convert = type_function_map[type]
+            data_frame[column] = data_frame[column].astype(type_to_convert, errors="ignore")
