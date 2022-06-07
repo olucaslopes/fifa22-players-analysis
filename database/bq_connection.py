@@ -37,21 +37,21 @@ def _random_hash(size: int = 6, chars: str = string.ascii_uppercase + string.dig
     return ''.join(choice(chars) for _ in range(size))
 
 
-def _read_api_key_with_fernet() -> bytes:
-    fernet = Fernet(open("filekey.key").read())
+def _read_api_key_with_fernet(filepath: str) -> bytes:
+    fernet = Fernet(open(filepath).read())
+    bq_key_filepath = filepath.replace("filekey.key", "big_query_api_key.txt")
 
     # opening the encrypted file
-    with open('big_query_api_key.txt', 'rb') as enc_file:
+    with open(bq_key_filepath, 'rb') as enc_file:
         encrypted = enc_file.read()
 
     # decrypting the file
     return fernet.decrypt(encrypted)
 
 
-def execute(query: str, api_key: str = None) -> DataFrame:
+def execute(query: str, api_key_path: str = None) -> DataFrame:
 
-    if api_key is None:
-        api_key = _read_api_key_with_fernet()
+    api_key = _read_api_key_with_fernet(api_key_path)
 
     query_start_time = datetime.now()
     try:
