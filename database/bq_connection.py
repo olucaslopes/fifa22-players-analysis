@@ -4,6 +4,7 @@ from cryptography.fernet import Fernet
 from google.cloud import bigquery
 from datetime import datetime
 from pandas import DataFrame
+from pandas import read_gbq
 from random import choice
 import string
 import json
@@ -53,26 +54,10 @@ def execute(query: str, api_key_path: str = None) -> DataFrame:
 
     api_key = _read_api_key_with_fernet(api_key_path)
 
-    query_start_time = datetime.now()
-    try:
-        bq_response = big_query_request(api_key, query)
-    except BadRequest as e:
-        log_query = {"connection": "Big Query", "query": query, "time": "00:00:00.00", "success": False}
-        raise e
-
-    total_query_time = str(datetime.now() - query_start_time)
-
-    if not bq_response.get("jobComplete"):
-        log_query = {"connection": "Big Query", "query": query, "time": total_query_time, "success": False}
-        raise JobNotCompleteError
-
-    elif bq_response.get("totalRows", "0") == "0":
-        data_frame = DataFrame()
-        metadata = None
-    else:
-        log_query = {"connection": "Big Query", "query": query, "time": total_query_time, "success": True}
-        data_frame = build_dataframe_from_request(bq_response)
-
+    client = connect_to_client(api_key)
+    result = client.query(query).result()
+    result_list = [dict(row) for row in result]
+    data_frame = DataFrame(result_list)
     return data_frame
 
 
@@ -100,6 +85,8 @@ def connect_to_client(api_key: str):
 def build_dataframe_from_request(request: dict) -> DataFrame:
     fields = request.get("schema").get("fields")
     rows = request.get("rows")
+
+    print(rows)
 
     column_names = [field.get("name") for field in fields]
     column_types = [field.get("type") for field in fields]
