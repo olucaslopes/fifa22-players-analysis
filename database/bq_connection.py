@@ -1,10 +1,7 @@
-from google.api_core.exceptions import BadRequest
 from google.oauth2 import service_account
 from cryptography.fernet import Fernet
 from google.cloud import bigquery
-from datetime import datetime
 from pandas import DataFrame
-from pandas import read_gbq
 from random import choice
 import string
 import json
