@@ -92,13 +92,11 @@ Como exploramos no caderno, para prever o rótulo de `#FK Specialist` para os jo
 
 <p align="center"><img src="img/skill-fk-vs-tag-fk-spec.png" width="40%"></p>
 
-Logo, nosso modelo pode ter aprendido a regra do negócio, e por isso ele acerta com tamanho previsão os resultados.
+Logo, nosso modelo pode ter aprendido a regra do negócio, e por isso ele acerta com tamanha precisão os resultados.
 
 Porém, é preciso cautela ao afirmar isso, pois o dataset é muito desbalanceado (a classe positiva para `# FK Specialist` é rara). Logo, se pudessemos coletar mais dados poderíamos afirmar com mais precisão que aprendemos a regra do negócio.
 
 ## 7. Apresentação em Vídeo
-
-[](https://youtu.be/h9QZWgI6Wlw)
 
 <p align="center">
     <a href="https://youtu.be/h9QZWgI6Wlw"><img alt="Apresentação projeto" width="75%" src="img/video-thumbnail.png" /></a>
