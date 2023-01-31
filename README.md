@@ -100,4 +100,6 @@ Porém, é preciso cautela ao afirmar isso, pois o dataset é muito desbalancead
 
 [](https://youtu.be/h9QZWgI6Wlw)
 
-[<p align="center"><img src="img/video-thumbnail.png" width="75%" alt="Apresentação projeto"></p>](https://www.youtube.com/watch?v=Hc79sDi3f0U "Apresentação projeto")
+<p align="center">
+    <a href="https://youtu.be/h9QZWgI6Wlw"><img alt="Apresentação projeto" width="75%" src="img/video-thumbnail.png" /></a>
+</p>
